@@ -12,16 +12,6 @@ import cvxpy as cp
 import math
 from multiprocessing import Pool
 import multiprocessing as mp
-
-# write a code to import functions in a file to jupyter notebook and autoload it
-# #
-# %load_ext autoreload
-# %autoreload 2
-
-
-
-
-
 def median_argmin(x):
     """
     Returns the median and the index of the median of a vector
@@ -153,10 +143,6 @@ def cvx_robust_erm_micq(b, h, c,  alpha,  y,num_part):
   # assert problem.is_dpp()
   problem.solve(verbose=False)
   return torch.tensor(problem.value),torch.tensor(z.value)
-
-
-
-
 
 def cvx_robust_erm(b, h, c,  alpha,  y, num_part):
   zs = np.linspace(0,3,50)
@@ -304,10 +290,19 @@ def models(data_all, i_glob, train_size, b, h, c, alpha, epsilon, lam_true, UB,l
     Gamma=1.5
     lw, zw = cvx_erm_cvarlb(b, h, c,  alpha, prob, trainy_mle, Gamma)
     loss_RU_insamp = task_loss_emp( zw, b, h, c, alpha, lam_true)
-    ro_mean, z_robust_mean = cvx_robust_erm_micq(b, h, c,  alpha, trainy, int(10)))
+    ro_mean, z_robust_mean = cvx_robust_erm_micq(b, h, c,  alpha, trainy, int(10))
     val_ro_mean = task_loss_emp(z_robust_mean, b, h, c, alpha,  lam_true)
+    all_eps = torch.cat([torch.tensor(0.0).unsqueeze(0),torch.logspace(-3, 2., 10)])
+    l_wass_in = np.zeros(len(all_eps),)
+    l_wass_out = np.zeros(len(all_eps),)
+    for j, eps_wass in enumerate(all_eps):
+      l_wass, z_wass = wass_infty(b, h, c,  alpha, prob, trainy_mle, eps_wass)
+      l_wass_in[j]=l_wass
+      l_wass_out[j,] =task_loss_emp(z_wass.item(), b, h, c, alpha,  lam_true)
+
+
     return i_glob,   loss_erm_val.item(), l_erm.item(),loss_RU_insamp.item(),lw.item(),val_ro_mean.item(), ro_mean.item(), loss_opt.item(),\
-     z_erm.item(), zw.item(), z_opt.item(), z_robust_mean.item()
+     z_erm.item(), zw.item(), z_opt.item(), z_robust_mean.item(), l_wass_in.item(), l_wass_out.item(), z_wass.item()
 
 # def output(b, h,c, alpha, data_all, num_ins, train_size, epsilon, lam_true, UB,loss_opt,z_opt, val):
 #     pool = mp.Pool()
@@ -327,6 +322,3 @@ def find_rowcolumn(array, threshold):
     min_row_index = np.min(np.argwhere(np.max(array>threshold,1)))
     max_col_index = np.max(np.argwhere(array[min_row_index]>threshold))
     return min_row_index, max_col_index
-
-
-
