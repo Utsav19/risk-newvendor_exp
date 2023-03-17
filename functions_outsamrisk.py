@@ -78,7 +78,7 @@ def wass_infty(b, h, c,  alpha, prob, y, eps_wass):
   constraints += [zh_plus>= z - y_plus,  zb_plus>=y_plus-z]
   constraints+=[s>=cp.exp(alpha*(b*zb_min+h*zh_min+c*z))]
   constraints+=[s>=cp.exp(alpha*(b*zb_plus+h*zh_plus+c*z))]
-  objective = cp.Minimize(cp.sum(s)/N)
+  objective = cp.Minimize(cp.sm(s)/N)
 
   problem = cp.Problem(objective, constraints)
   assert problem.is_dpp()
