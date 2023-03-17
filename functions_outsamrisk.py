@@ -62,7 +62,7 @@ def cvx_erm(b, h, c,  alpha, prob, y, reg, opt=False):
 
 def wass_infty(b, h, c,  alpha, prob, y, eps_wass):
   N=len(y)
-  y_min=y-eps_wass
+  y_min=torch.minimum(y-eps_wass,torch.zeros_like(y))
   y_plus= y+eps_wass
   p = torch.ones(N)/N   
   zb_min = cp.Variable((N, ))
@@ -70,19 +70,19 @@ def wass_infty(b, h, c,  alpha, prob, y, eps_wass):
   zb_plus = cp.Variable((N, ))
   zh_plus = cp.Variable((N, ))
   z = cp.Variable()
-  s=cp.Variable(N,)
+  s=cp.Variable((N,))
   constraints = [z >= 0]
   constraints += [zh_plus>=0, zb_plus>=0]
   constraints += [zh_min>=0, zb_min>=0]
   constraints += [zh_min>= z - y_min,  zb_min>=y_min-z]
   constraints += [zh_plus>= z - y_plus,  zb_plus>=y_plus-z]
-  constraints+=[s>=(1/N)*cp.exp(alpha*(b*zb_min+h*zh_min+c*z))]
-  constraints+=[s>=(1/N)*cp.exp(alpha*(b*zb_plus+h*zh_plus+c*z))]
-  objective = cp.Minimize(cp.sum(s))
+  constraints+=[s>=cp.exp(alpha*(b*zb_min+h*zh_min+c*z))]
+  constraints+=[s>=cp.exp(alpha*(b*zb_plus+h*zh_plus+c*z))]
+  objective = cp.Minimize(cp.sum(s)/N)
 
   problem = cp.Problem(objective, constraints)
   assert problem.is_dpp()
-  problem.solve(verbose=False)
+  problem.solve(solver='ECOS',verbose=True, abstol=1e-4, feastol=1e-6)
   return torch.tensor(problem.value), torch.tensor(z.value)
 
 
@@ -284,18 +284,19 @@ def models(data_all, i_glob, train_size, b, h, c, alpha, epsilon, lam_true, UB,l
     valy = dataP[train_size:]
     trainy_mle = torch.cat((trainy, valy))
     prob = torch.log(torch.ones_like(trainy_mle)/len(trainy_mle))
-    # l_erm, z_erm = bisection_loss_count(b, h, c,  alpha, epsilon, prob, trainy_mle, trainy_mle, 0) 
+    l_erm, z_erm = bisection_loss_count(b, h, c,  alpha, epsilon, prob, trainy_mle, trainy_mle, 0) 
     l_erm, z_erm = cvx_erm(b, h, c,  alpha, prob, trainy_mle,0)
     loss_erm_val = task_loss_emp( z_erm, b, h, c, alpha, lam_true)
     Gamma=1.5
     lw, zw = cvx_erm_cvarlb(b, h, c,  alpha, prob, trainy_mle, Gamma)
     loss_RU_insamp = task_loss_emp( zw, b, h, c, alpha, lam_true)
-    ro_mean, z_robust_mean = cvx_robust_erm_micq(b, h, c,  alpha, trainy, int(10))
+    ro_mean, z_robust_mean = cvx_robust_erm_micq(b, h, c,  alpha, trainy, int(1))
     val_ro_mean = task_loss_emp(z_robust_mean, b, h, c, alpha,  lam_true)
     all_eps = torch.cat([torch.tensor(0.0).unsqueeze(0),torch.logspace(-3, 2., 10)])
     l_wass_in = np.zeros(len(all_eps),)
     l_wass_out = np.zeros(len(all_eps),)
     for j, eps_wass in enumerate(all_eps):
+      print(j, eps_wass)
       l_wass, z_wass = wass_infty(b, h, c,  alpha, prob, trainy_mle, eps_wass)
       l_wass_in[j]=l_wass
       l_wass_out[j,] =task_loss_emp(z_wass.item(), b, h, c, alpha,  lam_true)
