@@ -55,20 +55,20 @@ def models(data_all, i_glob, train_size, b, h, c, alpha, epsilon, lam_true, UB,l
     # return i_glob,   loss_erm_val.item(), l_erm.item(),loss_RU_insamp.item(),lw.item(),val_ro_mean.item(), ro_mean.item(), loss_opt.item(),\
     #  z_erm.item(), zw.item(), z_opt.item(), z_robust_mean.item(), l_wass_in.item(), l_wass_out.item(), z_wass.item()
     return l_wass_in.item(), l_wass_out.item(), z_wass.item()
-# def output(b, h,c, alpha, data_all, num_ins, train_size, epsilon, lam_true, UB,loss_opt,z_opt, val):
-#     pool = mp.Pool()
-#     for i_g in range(num_ins):
-#         if i_g%20==0:
-#           print(i_g)
-#         pool.apply_async(models, args=(data_all, i_g,\
-#          train_size, b, h, c, alpha, epsilon, lam_true, UB,loss_opt,z_opt, val), callback=log_result) 
-#     pool.close()
-#     pool.join()
-def output(b, h,c, alpha, data_all, num_ins, train_size, epsilon, lam_true, UB, loss_opt,z_opt,  val):
+def output(b, h,c, alpha, data_all, num_ins, train_size, epsilon, lam_true, UB,loss_opt,z_opt, val):
+    pool = mp.Pool()
     for i_g in range(num_ins):
-        print(i_g)
-        result = models(data_all, i_g, train_size, b, h, c, alpha, epsilon, lam_true, UB,  loss_opt,z_opt, val)
-        log_result(result)
+        if i_g%20==0:
+          print(i_g)
+        pool.apply_async(models, args=(data_all, i_g,\
+         train_size, b, h, c, alpha, epsilon, lam_true, UB,loss_opt,z_opt, val), callback=log_result) 
+    pool.close()
+    pool.join()
+# def output(b, h,c, alpha, data_all, num_ins, train_size, epsilon, lam_true, UB, loss_opt,z_opt,  val):
+#     for i_g in range(num_ins):
+#         print(i_g)
+#         result = models(data_all, i_g, train_size, b, h, c, alpha, epsilon, lam_true, UB,  loss_opt,z_opt, val)
+#         log_result(result)
 def find_rowcolumn(array, threshold):
     min_row_index = np.min(np.argwhere(np.max(array>threshold,1)))
     max_col_index = np.max(np.argwhere(array[min_row_index]>threshold))
@@ -82,7 +82,7 @@ if __name__ == '__main__':
     epsilon = 1e-4
     UB = torch.tensor(5.)
     trains= 100
-    num_ins =1
+    num_ins =10
     threshold=0.5
     N=int(trains/math.sqrt(trains))
     # int(trains/5)
