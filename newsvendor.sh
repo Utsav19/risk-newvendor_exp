@@ -7,4 +7,4 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --output=ins1000.txt
 #SBATCH --time=00-12:00
-srun python onefile_robust_mean.py
+srun python main_risk.py
