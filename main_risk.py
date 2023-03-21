@@ -13,7 +13,6 @@ import multiprocessing as mp
 from functions_outsamrisk import *
 
 
-
 global list_result
 global opt_result
 list_result =[]
@@ -49,8 +48,17 @@ def models(data_all, i_glob, train_size, b, h, c, alpha, epsilon, lam_true, UB,l
     loss_RU_insamp = task_loss_emp( zw, b, h, c, alpha, lam_true)
     ro_mean, z_robust_mean = cvx_robust_erm_micq(b, h, c,  alpha, trainy, int(1))
     val_ro_mean = task_loss_emp(z_robust_mean, b, h, c, alpha,  lam_true)
-    # for j, num_part in enumerate(Ns):
-    #   cvx_robust_erm(b, h, c,  alpha,  y, num_part)
+    N_parts = np.linspace(5 , 10, 2, dtype=int)
+    l_mom_in = np.zeros(len(N_parts),)
+    z_mom_all = np.zeros(len(N_parts),)
+    l_mom_out = np.zeros(len(N_parts),)
+    
+    for j, num_part in enumerate(N_parts):
+        l_mom, z_mom = cvx_robust_erm(b, h, c,  alpha,  trainy_mle, num_part)
+        l_mom_in = l_mom.item()
+        z_mom_all = z_mom.item()
+        l_mom_out = task_loss_emp(z_mom.item(), b, h, c, alpha,  lam_true).item()
+
     l_wass_in = np.zeros(len(all_eps),)
     l_wass_out = np.zeros(len(all_eps),)
     z_wass_all = np.zeros(len(all_eps),)
@@ -60,25 +68,25 @@ def models(data_all, i_glob, train_size, b, h, c, alpha, epsilon, lam_true, UB,l
       z_wass_all = z_wass.item()
       l_wass_in[j]=l_wass.item()
       l_wass_out[j,] =task_loss_emp(z_wass.item(), b, h, c, alpha,  lam_true).item()
-    
+
 
     return i_glob,   loss_erm_val.item(), l_erm.item(),loss_RU_insamp.item(),lw.item(),val_ro_mean.item(), ro_mean.item(), loss_opt.item(),\
-     z_erm.item(), zw.item(), z_opt.item(), z_robust_mean.item(), l_wass_in, l_wass_out, z_wass.item()
+     z_erm.item(), zw.item(), z_opt.item(), z_robust_mean.item(), l_wass_in, l_wass_out, z_wass.item(), l_mom_in, l_mom_out, z_mom.item()
 
-# def output(b, h,c, alpha, data_all, num_ins, train_size, epsilon, lam_true, UB,loss_opt,z_opt,all_eps, val):
-#     pool = mp.Pool()
-#     for i_g in range(num_ins):
-#         if i_g%20==0:
-#           print(i_g)
-#         pool.apply_async(models, args=(data_all, i_g,\
-#          train_size, b, h, c, alpha, epsilon, lam_true, UB,loss_opt,z_opt,all_eps, val), callback=log_result) 
-#     pool.close()
-#     pool.join()
-def output(b, h,c, alpha, data_all, num_ins, train_size, epsilon, lam_true, UB, loss_opt,z_opt, all_eps, val):
+def output(b, h,c, alpha, data_all, num_ins, train_size, epsilon, lam_true, UB,loss_opt,z_opt,all_eps, val):
+    pool = mp.Pool()
     for i_g in range(num_ins):
-        print(i_g)
-        result = models(data_all, i_g, train_size, b, h, c, alpha, epsilon, lam_true, UB,  loss_opt,z_opt, all_eps,val)
-        log_result(result)
+        if i_g%20==0:
+          print(i_g)
+        pool.apply_async(models, args=(data_all, i_g,\
+         train_size, b, h, c, alpha, epsilon, lam_true, UB,loss_opt,z_opt,all_eps, val), callback=log_result) 
+    pool.close()
+    pool.join()
+# def output(b, h,c, alpha, data_all, num_ins, train_size, epsilon, lam_true, UB, loss_opt,z_opt, all_eps, val):
+#     for i_g in range(num_ins):
+#         print(i_g)
+#         result = models(data_all, i_g, train_size, b, h, c, alpha, epsilon, lam_true, UB,  loss_opt,z_opt, all_eps,val)
+#         log_result(result)
 def find_rowcolumn(array, threshold):
     min_row_index = np.min(np.argwhere(np.max(array>threshold,1)))
     max_col_index = np.max(np.argwhere(array[min_row_index]>threshold))
@@ -92,10 +100,11 @@ if __name__ == '__main__':
     epsilon = 1e-4
     UB = torch.tensor(5.)
     trains= 50
-    num_ins =20
+    num_ins = 30
+    N_eps=10
     threshold=0.5
     N=int(trains/math.sqrt(trains))
-    all_eps = torch.cat([torch.tensor(0.0).unsqueeze(0),torch.logspace(-3, 0.4, 1)])
+    all_eps = torch.cat([torch.tensor(0.0).unsqueeze(0),torch.logspace(-3, 0.5, N_eps)])
     # int(trains/5)
     num_parts = np.linspace(N,N,1, dtype=int)
     #   num_parts = np.linspace(1,1,1)
@@ -131,7 +140,7 @@ if __name__ == '__main__':
     with open('coverage200.csv', 'w') as outfile:
         writer = csv.writer(outfile)
         writer.writerow(['i_g', 'erm_val', 'erm', 'RU_val', 'RU', 'Robust_val', 'Robust_mean', 'opt', 'z_erm', 'z_RU','z_opt','z_robust',\
-                         'l_wass_in', 'l_wass_out', 'z_wass'])
+                         'l_wass_in', 'l_wass_out', 'z_wass', 'l_mom_in', 'l_mom_out', 'z_mom'])
         for row in data:
             writer.writerow(row)
 
