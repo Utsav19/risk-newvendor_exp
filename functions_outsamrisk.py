@@ -62,9 +62,9 @@ def cvx_erm(b, h, c,  alpha, prob, y, reg, opt=False):
 
 def wass_infty(b, h, c,  alpha, prob, y, eps_wass):
   N=len(y)
-  y_min=torch.minimum(y-eps_wass,torch.zeros_like(y))
+  y_min=torch.maximum(y-eps_wass,torch.zeros_like(y))
   y_plus= y+eps_wass
-  p = torch.ones(N)/N   
+  p = torch.ones(N)/N  
   zb_min = cp.Variable((N, ))
   zh_min = cp.Variable((N, ))
   zb_plus = cp.Variable((N, ))
@@ -76,9 +76,9 @@ def wass_infty(b, h, c,  alpha, prob, y, eps_wass):
   constraints += [zh_min>=0, zb_min>=0]
   constraints += [zh_min>= z - y_min,  zb_min>=y_min-z]
   constraints += [zh_plus>= z - y_plus,  zb_plus>=y_plus-z]
-  constraints+=[s>=cp.exp(alpha*(b*zb_min+h*zh_min+c*z))]
-  constraints+=[s>=cp.exp(alpha*(b*zb_plus+h*zh_plus+c*z))]
-  objective = cp.Minimize(cp.sum(s)/N)
+  constraints+=[s>=(1/N)*cp.exp(alpha*(b*zb_min+h*zh_min+c*z))]
+  constraints+=[s>=(1/N)*cp.exp(alpha*(b*zb_plus+h*zh_plus+c*z))]
+  objective = cp.Minimize(cp.sum(s))
 
   problem = cp.Problem(objective, constraints)
   assert problem.is_dpp()
