@@ -5,6 +5,6 @@
 #SBATCH --ntasks=1
 #SBATCH --mem-per-cpu=8G
 #SBATCH --cpus-per-task=8
-#SBATCH --output=ins1000.txt
-#SBATCH --time=00-12:00
+#SBATCH --output=small.txt
+#SBATCH --time=00-14:00
 srun python main_risk.py

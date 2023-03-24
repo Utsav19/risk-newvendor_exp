@@ -46,7 +46,7 @@ def models(dataP, i_glob, train_size, b, h, c, alpha, epsilon, lam_true, UB,loss
     loss_RU_insamp = task_loss_emp( zw, b, h, c, alpha, lam_true,samp,ys)
     ro_mean, z_robust_mean = cvx_robust_erm_micq(b, h, c,  alpha, trainy, int(1))
     val_ro_mean = task_loss_emp(z_robust_mean, b, h, c, alpha,  lam_true,samp,ys)
-    N_parts = np.linspace(1 , 10, 10, dtype=int)
+    N_parts = np.linspace(1 , 20, 20, dtype=int)
     l_mom_in = np.zeros(len(N_parts),)
     z_mom_all = np.zeros(len(N_parts),)
     l_mom_out = np.zeros(len(N_parts),)
@@ -111,12 +111,12 @@ if __name__ == '__main__':
     alpha = torch.tensor(1.)
     epsilon = 1e-4
     UB = torch.tensor(5.)
-    trains= 50
+    trains= 500
     size = trains
     train_size = int(0.7*trains)
     val_size = int(0.3*trains)
     num_ins = 20
-    N_eps=5
+    N_eps=10
     threshold=0.5
     N=int(trains/math.sqrt(trains))
     all_eps = torch.cat([torch.tensor(0.0).unsqueeze(0),torch.logspace(0.1,1, N_eps)])
@@ -151,4 +151,6 @@ if __name__ == '__main__':
                         'l_wass_mom_in', 'l_wass_mom_out', 'z_was_mom'])
         for row in data:
             writer.writerow(row)
+    with open('data.pkl', 'wb') as outfile: 
+        pickle.dump(list_result, outfile, pickle.HIGHEST_PROTOCOL)
 
