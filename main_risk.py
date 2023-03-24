@@ -144,13 +144,13 @@ if __name__ == '__main__':
   
     data = list_result
     data = np.array(data[:], dtype=object)
-    with open('coverage200.csv', 'w') as outfile:
+    with open('coverage500.csv', 'w') as outfile:
         writer = csv.writer(outfile)
         writer.writerow(['i_g', 'erm', 'RU_val', 'RU', 'Robust_val', 'Robust_mean', 'opt', 'z_erm', 'z_RU','z_opt','z_robust',\
                          'l_wass_in', 'l_wass_out', 'z_wass', 'l_mom_in', 'l_mom_out', 'z_mom',\
                         'l_wass_mom_in', 'l_wass_mom_out', 'z_was_mom'])
         for row in data:
             writer.writerow(row)
-    with open('data.pkl', 'wb') as outfile: 
+    with open('data500.pkl', 'wb') as outfile: 
         pickle.dump(list_result, outfile, pickle.HIGHEST_PROTOCOL)
 
