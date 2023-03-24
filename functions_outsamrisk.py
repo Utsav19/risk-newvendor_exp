@@ -12,6 +12,7 @@ import cvxpy as cp
 import math
 from multiprocessing import Pool
 import multiprocessing as mp
+
 def median_argmin(x):
     """
     Returns the median and the index of the median of a vector
@@ -86,63 +87,96 @@ def wass_infty(b, h, c,  alpha, prob, y, eps_wass):
   return torch.tensor(problem.value), torch.tensor(z.value)
 
 
-
+def robust_wass_infty(b, h, c,  alpha, prob, y, eps_wass, num_part):
+    N=len(y)
+    le = int(len(y)/num_part)
+    p= np.ones((le,))/le
+    M=50*num_part
+    phi = cp.Variable(num_part, integer=True)
+    p = torch.ones(N)/N  
+    zb_min = cp.Variable((num_part,le))
+    zh_min = cp.Variable((num_part,le))
+    zb_plus = cp.Variable((num_part,le))
+    zh_plus = cp.Variable((num_part,le))
+    t=cp.Variable()
+    z = cp.Variable()
+    s=cp.Variable((num_part,le))
+    constraints = [z >= 0]
+    constraints += [zh_plus>=0, zb_plus>=0]
+    constraints += [zh_min>=0, zb_min>=0]
+    for i in  range(num_part):
+        ym=y[i*le:(i+1)*le]
+        y_min=torch.maximum(ym-eps_wass,torch.zeros_like(ym))
+       
+        y_plus= ym+eps_wass
+        constraints += [zh_min[i,:] >= z - y_min,  zb_min[i,:] >= y_min-z]
+        constraints += [zh_plus[i,:] >= z - y_plus,  zb_plus[i,:] >= y_plus-z]
+        constraints += [s[i,:]>=(1/N)*cp.exp(alpha*(b*zb_min[i,:]+h*zh_min[i,:]+c*z))]
+        constraints+=[s[i,:]>=(1/N)*cp.exp(alpha*(b*zb_plus[i,:]+h*zh_plus[i,:]+c*z))]
+        constraints += [t+M*phi[i]>=cp.sum(s[i,:])]
+    constraints += [phi>=0, phi<=1, cp.sum(phi)==math.ceil(num_part/2)-1]
+    objective = cp.Minimize(t)
+    
+    problem = cp.Problem(objective, constraints)
+    assert problem.is_dpp()
+    problem.solve(solver='MOSEK',verbose=False)#, abstol=1e-4, feastol=1e-6)
+    return torch.tensor(problem.value), torch.tensor(z.value)
 
 def cvx_robust_RU_micq(b, h, c,  alpha,  y, Gamma,num_part):
-  le = int(len(y)/num_part)
-  p= np.ones((le,))/le
-  M=50
-  phi = cp.Variable(num_part, integer=True)
-  b=b.numpy()
-  h=h.numpy()
-  c=c.numpy()
-  alpha = alpha.numpy()
-  zb = cp.Variable((num_part,le))
-  zh = cp.Variable((num_part,le))
-  z = cp.Variable()
-  t = cp.Variable()
-  a = cp.Variable()
-  za = cp.Variable((num_part,le))
-  constraints = [z>=0, zb>=0, zh>=0]
-  for i in  range(num_part):
-      constraints += [t+M*phi[i]>=p.T @ ((1/Gamma)*cp.exp(alpha*(b*zb[i,:] + h*zh[i,:]+c*z))+(1-1/Gamma)*a)+\
+    le = int(len(y)/num_part)
+    p= np.ones((le,))/le
+    M=50*num_part
+    phi = cp.Variable(num_part, integer=True)
+    b=b.numpy()
+    h=h.numpy()
+    c=c.numpy()
+    alpha = alpha.numpy()
+    zb = cp.Variable((num_part,le))
+    zh = cp.Variable((num_part,le))
+    z = cp.Variable()
+    t = cp.Variable()
+    a = cp.Variable()
+    za = cp.Variable((num_part,le))
+    constraints = [z>=0, zb>=0, zh>=0]
+    for i in  range(num_part):
+        constraints += [t+M*phi[i]>=p.T @ ((1/Gamma)*cp.exp(alpha*(b*zb[i,:] + h*zh[i,:]+c*z))+(1-1/Gamma)*a)+\
             cp.sum(za[i,:])]
-      constraints+=[za>=0, za[i,:]>=(Gamma-(1/Gamma))*(cp.multiply(p, cp.exp(alpha*(b*zb[i,:] + h*zh[i,:]+c*z)))-a)]
-      constraints += [zb[i,:]>=y[i*le:(i+1)*le]-z]
-      constraints += [zh[i,:]>=z-y[i*le:(i+1)*le] ]
-  constraints += [phi>=0, phi<=1, cp.sum(phi)==math.ceil(num_part/2)-1]
-  objective = cp.Minimize(t)
-  problem = cp.Problem(objective, constraints)
-  # assert problem.is_dpp()
-  problem.solve(verbose=False)
-  return torch.tensor(problem.value),torch.tensor(z.value)
+        constraints+=[za>=0, za[i,:]>=(Gamma-(1/Gamma))*(cp.multiply(p, cp.exp(alpha*(b*zb[i,:] + h*zh[i,:]+c*z)))-a)]
+        constraints += [zb[i,:]>=y[i*le:(i+1)*le]-z]
+        constraints += [zh[i,:]>=z-y[i*le:(i+1)*le] ]
+    constraints += [phi>=0, phi<=1, cp.sum(phi)==math.ceil(num_part/2)-1]
+    objective = cp.Minimize(t)
+    problem = cp.Problem(objective, constraints)
+    # assert problem.is_dpp()
+    problem.solve(verbose=False)
+    return torch.tensor(problem.value),torch.tensor(z.value)
 
 
 def cvx_robust_erm_micq(b, h, c,  alpha,  y,num_part):
-  le = int(len(y)/num_part)
-  M=50
-  phi = cp.Variable(num_part, integer=True)
-  b=b.numpy()
-  h=h.numpy()
-  c=c.numpy()
-  alpha = alpha.numpy()
-  w = cp.Variable((num_part,le))
-  zb = cp.Variable((num_part,le))
-  zh = cp.Variable((num_part,le))
-  z = cp.Variable()
-  t = cp.Variable()
-  constraints = [z>=0, zb>=0, zh>=0]
-  for i in  range(num_part):
-      constraints += [t+M*phi[i]>=cp.sum(w[i,:])/le]
-      constraints += [zb[i,:]>=y[i*le:(i+1)*le]-z]
-      constraints += [zh[i,:]>=z-y[i*le:(i+1)*le] ]
-      constraints += [w[i,:]>= cp.exp(alpha*(c*z+b*zb[i,:]+h*zh[i,:])) ]
-  constraints += [phi>=0, phi<=1, cp.sum(phi)==math.ceil(num_part/2)-1]
-  objective = cp.Minimize(t)
-  problem = cp.Problem(objective, constraints)
-  # assert problem.is_dpp()
-  problem.solve(verbose=False)
-  return torch.tensor(problem.value),torch.tensor(z.value)
+    le = int(len(y)/num_part)
+    M=50*num_part
+    phi = cp.Variable(num_part, integer=True)
+    b=b.numpy()
+    h=h.numpy()
+    c=c.numpy()
+    alpha = alpha.numpy()
+    w = cp.Variable((num_part,le))
+    zb = cp.Variable((num_part,le))
+    zh = cp.Variable((num_part,le))
+    z = cp.Variable()
+    t = cp.Variable()
+    constraints = [z>=0, zb>=0, zh>=0]
+    for i in  range(num_part):
+        constraints += [t+M*phi[i]>=cp.sum(w[i,:])/le]
+        constraints += [zb[i,:]>=y[i*le:(i+1)*le]-z]
+        constraints += [zh[i,:]>=z-y[i*le:(i+1)*le] ]
+        constraints += [w[i,:]>= cp.exp(alpha*(c*z+b*zb[i,:]+h*zh[i,:])) ]
+    constraints += [phi>=0, phi<=1, cp.sum(phi)==math.ceil(num_part/2)-1]
+    objective = cp.Minimize(t)
+    problem = cp.Problem(objective, constraints)
+    # assert problem.is_dpp()
+    problem.solve(verbose=False)
+    return torch.tensor(problem.value),torch.tensor(z.value)
 
 def cvx_robust_erm(b, h, c,  alpha,  y, num_part):
   zs = np.linspace(0,3,50)
@@ -204,6 +238,7 @@ def cvx_erm_cvarlb(b, h, c,  alpha, prob, y, Gamma, RU=1):
     return torch.tensor(problem.value), torch.tensor(z.value)
 def bisection_loss_count(b, h, c,  alpha, epsilon, prob, y, ys, reg=1, prob_mle=1., pred=False, rudin=False):
     lb = torch.tensor(0)  
+    reg=0
     ub = torch.tensor(100)
     grad1=torch.tensor(1)
     it = 5
@@ -213,7 +248,7 @@ def bisection_loss_count(b, h, c,  alpha, epsilon, prob, y, ys, reg=1, prob_mle=
     elif rudin:
       f = lambda z: log_entropic_risk(y, z, b,h, c, alpha, prob) + reg*(torch.norm(z,2)**2)
     else:
-      f = lambda z: log_entropic_risk(y, z, b,h, c, alpha, prob) + 1e-4*(z**2)
+      f = lambda z: log_entropic_risk(y, z, b,h, c, alpha, prob) +1e-4*(z**2)
     while (torch.abs(grad1) > epsilon and (it<1e4 and torch.abs(ub-lb)>1e-4*epsilon)):
       z0 = (lb+ub)/2.0
       grad1 = (f(z0+epsilon)-f(z0))/epsilon
@@ -232,14 +267,22 @@ def task_loss(ys, zopt,  b, h, c, alpha,  lam_true):
     c_out = log_entropic_risk(ys, zopt, b, h, c, alpha, prob)
     return c_out
    
-def task_loss_emp(zopt,  b, h, c, alpha, lam_true):
-    samp = Dist.Exponential(lam_true)
-    ys = torch.rand(int(1e8))
+def task_loss_emp(zopt,  b, h, c, alpha, lam_true,samp,ys):
+#     samp = Dist.Exponential(lam_true)
+    torch.manual_seed(42)
+#     ys = samp.sample(sample_shape=torch.Size([10000000]))
+#     torch.rand(int(1e7))
+    # samp.sample(sample_shape=torch.Size([int(1e6)]))
+    prob = torch.ones_like(ys)/len(ys)
+    c_out = entropic_risk(ys, zopt, b, h, c, alpha, torch.log(prob))
+   
+    return c_out
+
+def task_loss_emp_insamp(zopt, ys,  b, h, c, alpha, lam_true):
     # samp.sample(sample_shape=torch.Size([int(1e6)]))
     prob = torch.log(torch.ones_like(ys)/len(ys))
     c_out = log_entropic_risk(ys, zopt, b, h, c, alpha, prob)
     return c_out
-
 
 def e2e_reg_rudin(reg,  b, h, c, alpha, zs, y):
   loss_e2e = torch.zeros(len(zs),)
@@ -260,4 +303,6 @@ def mle(trainy, means, ys):
     # f(x) = p*(1_x==0)+(1-p)*Poi(x)
     js = mle_loss.argmin()
     return means[js]
+
+
 
