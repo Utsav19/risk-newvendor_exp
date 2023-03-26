@@ -3,8 +3,8 @@
 #SBATCH --account=def-edelage
 #SBATCH --mail-user=utsav.sadana@mail.mcgill.ca
 #SBATCH --ntasks=1
-#SBATCH --mem-per-cpu=8G
+#SBATCH --mem-per-cpu=16G
 #SBATCH --cpus-per-task=8
-#SBATCH --output=small.txt
-#SBATCH --time=00-14:00
+#SBATCH --output=chck.txt
+#SBATCH --time=00-12:00
 srun python main_risk.py
