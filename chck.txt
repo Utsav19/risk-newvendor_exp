@@ -1,0 +1,30 @@
+0
+0 tensor(0.)
+1 tensor(1.2589)
+1
+0 tensor(0.)
+1 tensor(1.2589)
+2
+0 tensor(0.)
+1 tensor(1.2589)
+3
+0 tensor(0.)
+1 tensor(1.2589)
+4
+0 tensor(0.)
+1 tensor(1.2589)
+5
+0 tensor(0.)
+1 tensor(1.2589)
+6
+0 tensor(0.)
+1 tensor(1.2589)
+7
+0 tensor(0.)
+1 tensor(1.2589)
+8
+0 tensor(0.)
+1 tensor(1.2589)
+9
+0 tensor(0.)
+1 tensor(1.2589)

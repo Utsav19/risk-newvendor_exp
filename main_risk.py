@@ -16,21 +16,11 @@ global list_result
 global opt_result
 list_result =[]
 opt_result =[]
-global wass_all
-wass_all = np.zeros((10, 2))
 def log_optresult(result):
     opt_result.append(result)
 def log_result(result):
-    
-    
     list_result.append(result)
-def to_numpy(x):
-    return np.array([np.round(x[i].item(),2) for i in range(len(x))])
-def compute_meansx(x):
-    return [torch.mean(x[i]).item() for i in range(len(x))]
 
-def compute_means(x):
-    return [np.mean(x[i]) for i in range(len(x))]
 
 
 def models(dataP, i_glob, train_size, b, h, c, alpha, epsilon, lam_true, UB,loss_opt,z_opt,all_eps,samp,ys, val=False):
@@ -46,7 +36,7 @@ def models(dataP, i_glob, train_size, b, h, c, alpha, epsilon, lam_true, UB,loss
     loss_RU_insamp = task_loss_emp( zw, b, h, c, alpha, lam_true,samp,ys)
     ro_mean, z_robust_mean = cvx_robust_erm_micq(b, h, c,  alpha, trainy, int(1))
     val_ro_mean = task_loss_emp(z_robust_mean, b, h, c, alpha,  lam_true,samp,ys)
-    N_parts = np.linspace(1 , 20, 20, dtype=int)
+    N_parts = np.linspace(1 , 50, 5, dtype=int)
     l_mom_in = np.zeros(len(N_parts),)
     z_mom_all = np.zeros(len(N_parts),)
     l_mom_out = np.zeros(len(N_parts),)
@@ -104,19 +94,19 @@ def find_rowcolumn(array, threshold):
     max_col_index = np.max(np.argwhere(array[min_row_index]>threshold))
     return min_row_index, max_col_index
 if __name__ == '__main__':
-    b, h, c = 2, 0.5, 1
+    b, h, c = 5, 1, 2
     b = torch.tensor(b)
     h = torch.tensor(h)
     c = torch.tensor(c)
     alpha = torch.tensor(1.)
     epsilon = 1e-4
     UB = torch.tensor(5.)
-    trains= 500
+    trains = 200
     size = trains
     train_size = int(0.7*trains)
     val_size = int(0.3*trains)
-    num_ins = 20
-    N_eps=10
+    num_ins = 10
+    N_eps=1
     threshold=0.5
     N=int(trains/math.sqrt(trains))
     all_eps = torch.cat([torch.tensor(0.0).unsqueeze(0),torch.logspace(0.1,1, N_eps)])
@@ -130,7 +120,7 @@ if __name__ == '__main__':
     regs = torch.cat([torch.tensor(0.0).unsqueeze(0),torch.linspace(0.05, 1., 10)])
     global data_all
     data_all=[]
-    lam_true = 3
+    lam_true = 4
     torch.manual_seed(42)
     samp = Dist.Exponential(lam_true)
 #     ys = torch.rand(10000000)
@@ -144,13 +134,13 @@ if __name__ == '__main__':
   
     data = list_result
     data = np.array(data[:], dtype=object)
-    with open('coverage500.csv', 'w') as outfile:
+    with open('coverage_check.csv', 'w') as outfile:
         writer = csv.writer(outfile)
         writer.writerow(['i_g', 'erm', 'RU_val', 'RU', 'Robust_val', 'Robust_mean', 'opt', 'z_erm', 'z_RU','z_opt','z_robust',\
                          'l_wass_in', 'l_wass_out', 'z_wass', 'l_mom_in', 'l_mom_out', 'z_mom',\
                         'l_wass_mom_in', 'l_wass_mom_out', 'z_was_mom'])
         for row in data:
             writer.writerow(row)
-    with open('data500.pkl', 'wb') as outfile: 
+    with open('data_check.pkl', 'wb') as outfile: 
         pickle.dump(list_result, outfile, pickle.HIGHEST_PROTOCOL)
 

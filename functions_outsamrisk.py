@@ -27,13 +27,6 @@ def median_argmin(x):
         idx_med = idx[(len(x) + 1) // 2]
     return med, idx_med
 
-def log_entropic_risk(y, z, b, h, c, alpha, prob): 
-    loss = b*torch.maximum(y-z,torch.zeros_like(y)) + h*(torch.maximum(z-y,torch.zeros_like(y)))+c*z
-    if alpha>0:
-      return torch.exp(prob).T @ torch.exp(alpha*loss)# log(p'*exp(alpha*loss))
-    else:
-      return torch.exp(prob).T @ loss #p'*loss
-
 def entropic_risk(y, z, b, h, c, alpha, prob): 
     loss = b*torch.maximum(y-z,torch.zeros_like(y)) + h*(torch.maximum(z-y,torch.zeros_like(y)))+c*z
     if alpha>0:
@@ -91,7 +84,7 @@ def robust_wass_infty(b, h, c,  alpha, prob, y, eps_wass, num_part):
     N=len(y)
     le = int(len(y)/num_part)
     p= np.ones((le,))/le
-    M=50*num_part
+    M=1000*num_part
     phi = cp.Variable(num_part, integer=True)
     p = torch.ones(N)/N  
     zb_min = cp.Variable((num_part,le))
@@ -242,13 +235,14 @@ def bisection_loss_count(b, h, c,  alpha, epsilon, prob, y, ys, reg=1, prob_mle=
     ub = torch.tensor(100)
     grad1=torch.tensor(1)
     it = 5
+    prob = torch.log(torch.ones_like(y)/len(y))
     if pred:
       f = lambda z: torch.log((1-reg)*entropic_risk(y, z, b,h, c, alpha, prob)\
          + reg*entropic_risk(ys, z, b, h, c, alpha, prob_mle))
     elif rudin:
-      f = lambda z: log_entropic_risk(y, z, b,h, c, alpha, prob) + reg*(torch.norm(z,2)**2)
+      f = lambda z: entropic_risk(y, z, b,h, c, alpha, prob) + reg*(torch.norm(z,2)**2)
     else:
-      f = lambda z: log_entropic_risk(y, z, b,h, c, alpha, prob) +1e-4*(z**2)
+      f = lambda z: entropic_risk(y, z, b,h, c, alpha, prob) +1e-4*(z**2)
     while (torch.abs(grad1) > epsilon and (it<1e4 and torch.abs(ub-lb)>1e-4*epsilon)):
       z0 = (lb+ub)/2.0
       grad1 = (f(z0+epsilon)-f(z0))/epsilon
@@ -264,7 +258,7 @@ def task_loss(ys, zopt,  b, h, c, alpha,  lam_true):
     dist = Dist.Poisson(lam_true)
     m = nn.LogSoftmax(dim=0)
     prob = m(dist.log_prob(ys))
-    c_out = log_entropic_risk(ys, zopt, b, h, c, alpha, prob)
+    c_out = entropic_risk(ys, zopt, b, h, c, alpha, prob)
     return c_out
    
 def task_loss_emp(zopt,  b, h, c, alpha, lam_true,samp,ys):
@@ -281,15 +275,15 @@ def task_loss_emp(zopt,  b, h, c, alpha, lam_true,samp,ys):
 def task_loss_emp_insamp(zopt, ys,  b, h, c, alpha, lam_true):
     # samp.sample(sample_shape=torch.Size([int(1e6)]))
     prob = torch.log(torch.ones_like(ys)/len(ys))
-    c_out = log_entropic_risk(ys, zopt, b, h, c, alpha, prob)
+    c_out = entropic_risk(ys, zopt, b, h, c, alpha, prob)
     return c_out
 
 def e2e_reg_rudin(reg,  b, h, c, alpha, zs, y):
   loss_e2e = torch.zeros(len(zs),)
   prob = torch.log(torch.ones_like(y)/len(y))
   for j, z in enumerate(zs):   
-    loss_e2e[j,]=torch.log(entropic_risk(y, z, b, h, c, alpha, prob)\
-        + reg*torch.norm(z,1))
+    loss_e2e[j,]=entropic_risk(y, z, b, h, c, alpha, prob)\
+        + reg*torch.norm(z,1)
   idx = loss_e2e.argmin()
   return zs[idx], loss_e2e
 
