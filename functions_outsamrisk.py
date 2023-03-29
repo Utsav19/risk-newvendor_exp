@@ -84,7 +84,7 @@ def robust_wass_infty(b, h, c,  alpha, prob, y, eps_wass, num_part):
     N=len(y)
     le = int(len(y)/num_part)
     p= np.ones((le,))/le
-    M=1000*num_part
+    M=10*num_part
     phi = cp.Variable(num_part, integer=True)
     p = torch.ones(N)/N  
     zb_min = cp.Variable((num_part,le))
